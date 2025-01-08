@@ -15,7 +15,7 @@
     (set (intern (string :*local-project-directories*) :ql) local-project-dir)))
 
 (defsystem "lem"
-  :version "2.2.0"
+  :version "2.3.0"
   :depends-on ("iterate"
                "closer-mop"
                "trivia"
@@ -266,7 +266,8 @@
                "lem-terminal"
                "lem-legit"
                "lem-dashboard"
-               "lem-copilot"))
+               "lem-copilot"
+               "lem-lemon-tree"))
 
 (defsystem "lem/executable"
   :build-operation program-op
