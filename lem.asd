@@ -267,7 +267,8 @@
                "lem-legit"
                "lem-dashboard"
                "lem-copilot"
-               "lem-lemon-tree"))
+               "lem-lemon-tree"
+               "lem-lemon-tree-python"))
 
 (defsystem "lem/executable"
   :build-operation program-op

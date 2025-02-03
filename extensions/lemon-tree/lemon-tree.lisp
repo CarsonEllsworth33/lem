@@ -37,6 +37,5 @@ The specific lemon-<lang>-mode should do the syntax highlighting.
   (eval `(register-language ,name ,lib :fn-name ,fn-name)))
 
 (defun lemon-tree-parse-buffer ()
-  (let ((text (buffer-text (current-buffer)))) 
+  (let ((parsable-text (buffer-text (current-buffer)))) 
     (parse-string *lemon-current-parser* text)))
-  
