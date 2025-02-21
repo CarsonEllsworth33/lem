@@ -22,7 +22,8 @@ The specific lemon-<lang>-mode should do the syntax highlighting.
   (:documentation "")
   (:export :*lemon-current-parser*
            #:lemon-tree-register-language
-           #:lemon-tree-parse-buffer))
+           #:lemon-tree-parse-buffer
+           #:lemon-tree-parse-string))
 
 (in-package :lem/lemon-tree)
 
@@ -31,11 +32,13 @@ The specific lemon-<lang>-mode should do the syntax highlighting.
   "This is the current parser currently being used by lemon-tree
        this is set by the lemon tree language mode")
 
-;; Does this need to be a macro?
 (defun lemon-tree-register-language (name lib &key (fn-name nil))
   "This needs to be called by lemon-<lang>-mode-hook"
   (eval `(register-language ,name ,lib :fn-name ,fn-name)))
 
 (defun lemon-tree-parse-buffer ()
   (let ((parsable-text (buffer-text (current-buffer)))) 
-    (parse-string *lemon-current-parser* text)))
+    (parse-string *lemon-current-parser* parsable-text)))
+
+(defun lemon-tree-parse-string (string)
+    (parse-string *lemon-current-parser* string))
