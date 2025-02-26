@@ -11,8 +11,16 @@ Order of operations should be roughly
 
 
 This package should handle loading the library requested by the lemon mode, grab buffer contents
-and generate the parse tree. Pass this back to lemon-<lang>-mode
-The specific lemon-<lang>-mode should do the syntax highlighting.
+and generate the parse tree. Should the parse tree make a tm-patterns like make-tmlanguage-c in
+grammers.lisp?
+
+Pass this back to lemon-<lang>-mode
+The specific lemon-<lang>-mode should do the syntax highlighting. (maybe not)
+
+Helpful info:
+macros.lisp defines the syntax highlighting by assigning for example
+(lem:syntax-string-attribute :foreground (color :base02))
+These colors are defined in color.lisp iirc
 |#
 (defpackage :lem/lemon-tree
   (:use :cl
