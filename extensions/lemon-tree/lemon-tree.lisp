@@ -21,6 +21,17 @@ Helpful info:
 macros.lisp defines the syntax highlighting by assigning for example
 (lem:syntax-string-attribute :foreground (color :base02))
 These colors are defined in color.lisp iirc
+
+Note taken Mar-01 - When a complex enough source program is created
+    I notice that a lot of nils in the node tree are present which
+    seem to correlate to where there should be strings of what the 
+    symbol is. ex. "int" or "memory_size" or "24" in the case of
+    number literals. This could mean that if I find a way to add
+    these strings to the node tree then all I would need to do is
+    to search the list for strings and then I have my keywords for
+    the language. I would just need to skip the identifier strings
+    and add all others to the tokens for highlighting. which seems
+    possible to do.
 |#
 (defpackage :lem/lemon-tree
   (:use :cl
@@ -49,4 +60,8 @@ These colors are defined in color.lisp iirc
     (parse-string *lemon-current-parser* parsable-text)))
 
 (defun lemon-tree-parse-string (string)
-    (parse-string *lemon-current-parser* string))
+  (parse-string *lemon-current-parser* string))
+
+(defun lemon-tree-parse-file (file)
+  (let ((string (uiop:read-file-string file)))
+    (lemon-tree-parse-string string))) 
