@@ -101,6 +101,20 @@ Note taken Mar-02 - Just a break down of the node structure used in
    Possibly allow for a list of :Symbols to search for allowing other
    language parsers to accomodate for their unique productions.")
 
+(defun leaf-p (node)
+  "Checks to see if the node is a leaf or branch if it is a branch, then
+   return the child, otherwise return t."
+  (let ((child (node-children node)))
+    (if (not child)
+        t
+        child))) 
 
-
+(defun get-leaf (node &key go-right)
+  "grabs the first leaf it can and returns it. Set go-right to t to have the
+   the traversal prefer right side children over left if they exist"
+  (let ((lr-function ;; Set lr-function to either cdr or car
+          (if (go-right)
+              (#'cdr)
+              (#'car))))
+    ()))
 
