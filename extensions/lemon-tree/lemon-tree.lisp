@@ -114,7 +114,7 @@ Note taken Mar-02 - Just a break down of the node structure used in
    the traversal prefer right side children over left if they exist"
   (let ((lr-function ;; Set lr-function to either cdr or car
           (if (go-right)
-              (#'cdr)
-              (#'car))))
+              #'cdr
+              #'car)))
     ()))
 
