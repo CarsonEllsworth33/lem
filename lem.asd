@@ -273,6 +273,7 @@
                "lem-lua-mode"
                "lem-terminal"
                "lem-legit"
+	       "lem-lemon-tree"
                "lem-dashboard"
                "lem-copilot"))
 

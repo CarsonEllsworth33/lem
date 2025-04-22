@@ -42,3 +42,7 @@
  (:class qlot/source/git:source-git
   :initargs (:remote-url "https://github.com/cxxxr/jsonrpc.git")
   :version "git-2af1e0fad429ee8c706b86c4a853248cdd1be933"))
+("cl-tree-sitter" .
+ (:class qlot/source/github:source-github
+  :initargs (:repos "carsonellsworth33/cl-tree-sitter" :ref nil :branch nil :tag nil)
+  :version "github-9559a31208b8ddbe77321f4b1606fa16598c9a81"))
