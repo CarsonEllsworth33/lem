@@ -21,6 +21,21 @@
 (defparameter *food-attribute* (make-attribute :foreground "magenta")) 
 (defparameter *wall-attribute* (make-attribute :foreground "gray")) 
 
+(defclass strata ()
+  ((world-position ;; (Y X) or (line, column)
+    :initform (random-world-point))
+   (health
+    :accessor health
+    :initarg :health
+    :initform 0)))
+
+(defmethod strata-get-y-pos (strata)
+  (car (slot-value strata 'world-position)))
+
+(defmethod strata-get-x-pos (strata)
+  (cadr (slot-value strata 'world-position)))
+
+
 (defun insert-food ()
   (insert-string ))
 
@@ -38,22 +53,8 @@
 (defun strata-move-left (strata)
   (decf (strata-get-x-pos strata)))
 
-(defclass strata ()
-  ((world-position
-    :accessor world-position ;; (Y X) or (line, column)
-    :initform (random-world-point))
-   (health
-    :accessor health
-    :initarg :health
-    :initform 0)))
-
-(defun strata-get-y-pos (strata)
-  (car (world-position strata)))
-
-(defun strata-get-x-pos (strata)
-  (cdr (world-position strata)))
-
-
+(defun strata-quit ()
+  (setf *playing-p* nil))
 
 ;; Lem specific things
 (define-major-mode strata-mode nil
