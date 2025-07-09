@@ -1,7 +1,8 @@
 (defpackage :lem-serial-monitor
   (:use :cl :lem :lem/buffer)
   (:export :start-serial-monitor
-           :stop-serial-monitor))
+           :stop-serial-monitor
+           :*serial-monitor-width*))
 
 (in-package :lem-serial-monitor)
 
@@ -10,6 +11,8 @@
 (defvar *serial-write-thread* nil)
 (defvar *serial-buffer* nil)
 (defvar *work-queue* nil)
+(defvar *serial-window*)
+(defvar *serial-monitor-width* 50)
 
 
 (defun read-serial-lines ()
@@ -26,12 +29,16 @@
                                                 (cb (current-buffer)))
                                             (setf lem/buffer/internal::*current-buffer* *serial-buffer*)
                                             (move-to-end-of-buffer)
-                                            (lem:insert-string point (format nil "~S" line))
+                                            (lem:insert-string point (format nil "~A~%" line))
+                                            (lem:redraw-display)
                                             (setf lem/buffer/internal::*current-buffer* cb))))))))
       (error (e) ;; Could also catch stream closed
         (format *error-output* "Serial error: ~a~%" e)
         (return)))
     (sleep 0.1)))
+
+(defmacro print-with-newline ()
+  )
 
 (defun write-serial-line ()
   (loop
@@ -49,13 +56,17 @@
     (return-from start-serial-monitor))
   (setf *serial-stream* (open port :direction :input :element-type 'character))
   (setf *serial-buffer* (lem:make-buffer "*serial-monitor*" :temporary t))
-  (lem:pop-to-buffer *serial-buffer*)
+  (setf *serial-window*
+        (lem:make-rightside-window *serial-buffer* :width *serial-monitor-width*))
   (setf *serial-read-thread*
         (bt2:make-thread #'read-serial-lines :name "serial-monitor-read-thread"))
   (setf *serial-write-thread*
         (bt2:make-thread #'write-serial-line :name "serial-monitor-write-thread")))
 
 (defun stop-serial-monitor ()
+  (when *serial-window*
+    (lem:delete-window *serial-window*)
+    (setf *serial-window* nil))
   (when *serial-buffer*
     (lem:delete-buffer *serial-buffer*)
     (setf *serial-buffer* nil))
