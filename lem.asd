@@ -275,6 +275,7 @@
                "lem-terminal"
                "lem-legit"
 	       "lem-lemon-tree"
+               "lem-serial-monitor"
                "lem-dashboard"
                "lem-copilot"))
 
