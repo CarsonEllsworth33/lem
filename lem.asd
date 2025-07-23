@@ -297,6 +297,7 @@
                #-os-windows "lem-terminal"
                "lem-legit"
                "lem-tutor"
+               "lem-serial-monitor"
                "lem-dashboard"
                "lem-dockerfile-mode"
                "lem-copilot"
