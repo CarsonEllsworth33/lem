@@ -276,6 +276,7 @@
                "lem-lua-mode"
                "lem-terminal"
                "lem-legit"
+               "lem-serial-monitor"
                "lem-dashboard"
                "lem-copilot"))
 
