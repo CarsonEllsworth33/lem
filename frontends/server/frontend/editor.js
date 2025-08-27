@@ -24,7 +24,6 @@ function isMacOS() {
 }
 
 function computeFontSize(font) {
-
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
   ctx.font = font;
@@ -71,13 +70,19 @@ function drawHorizontalLine({ ctx, x, y, width, style, lineWidth = 1 }) {
 
 class Option {
   constructor({ fontName, fontSize }) {
-    const font = fontSize + 'px ' + fontName;
-    this.font = font;
-    const [width, height] = computeFontSize(font);
-    this.fontWidth = width;
-    this.fontHeight = height;
+    this.setFont(fontName, fontSize);
     this.foreground = '#333';
     this.background = '#ccc';
+  }
+
+  setFont(fontName, fontSize) {
+    const font = fontSize + 'px ' + fontName;
+    const [width, height] = computeFontSize(font);
+    this.fontName = fontName;
+    this.fontSize = fontSize;
+    this.fontWidth = width;
+    this.fontHeight = height;
+    this.font = font;
   }
 }
 
@@ -85,53 +90,14 @@ function getLemEditorElement() {
   return document.getElementById('lem-editor');
 }
 
-class Cursor {
-  constructor(editor, name, color) {
-    this.editor = editor;
-    this.name = name;
-    this.color = color;
-
-    this.span = document.createElement('span');
-    this.span.style.all = 'none';
-    this.span.style.position = 'absolute';
-    this.span.style.zIndex = '';
-    this.span.style.top = '0';
-    this.span.style.left = '0';
-    this.span.style.fontFamily = editor.option.font;
-    this.span.style.backgroundColor = color;
-    this.span.style.color = 'white';
-    this.span.innerHTML = '';
-    document.body.appendChild(this.span);
-
-    this.timerId = null;
-  }
-
-  move(x, y) {
-    const [x0, y0] = this.editor.getDisplayRectangle();
-    this.span.style.visibility = 'visible';
-    this.span.textContent = this.name;
-    this.span.style.left = (x + x0) + 'px';
-    this.span.style.top = (y + y0) + 'px';
-    this.span.style.padding = '3px 1%'
-    if (this.timerId) {
-      clearTimeout(this.timerId);
-    }
-    this.timerId = setTimeout(
-      () => {
-        this.span.style.visibility = 'hidden';
-      },
-      500,
-    );
-  }
-}
-
-function addMouseEventListeners({dom, editor, isDraggable, draggableStyle}) {
+function addMouseEventListeners({ dom, editor, isDraggable, draggableStyle }) {
   dom.addEventListener('contextmenu', (event) => {
     event.preventDefault();
   });
 
   const handleMouseDownUp = (event, eventName) => {
     event.preventDefault();
+
     const [displayX, displayY] = editor.getDisplayRectangle();
 
     const pixelX = (event.clientX - displayX);
@@ -154,6 +120,7 @@ function addMouseEventListeners({dom, editor, isDraggable, draggableStyle}) {
 
   dom.addEventListener('mousedown', (event) => {
     if (isDraggable) document.body.style.cursor = draggableStyle;
+    editor.focusHiddenInput();
     handleMouseDownUp(event, 'mousedown');
   });
 
@@ -220,6 +187,17 @@ function addMouseEventListeners({dom, editor, isDraggable, draggableStyle}) {
   });
 }
 
+const zIndexTable = {
+  'floating-window': 200,
+  'modeline': 100,
+  'vertical-border': 100,
+  'horizontal-border': 101,
+};
+
+function zindex(type) {
+  return zIndexTable[type] || 0;
+}
+
 const borderOffsetX = 5;
 const borderOffsetY = 10;
 
@@ -238,19 +216,21 @@ class BaseSurface {
     }
   }
 
-  setupDOM({ dom, isFloating, border }) {
+  setupDOM({ dom, isFloating, border, cssClassName }) {
     this.mainDOM = dom;
 
     if (isFloating && border) {
       this.wrapper = document.createElement('div');
+      if (cssClassName) this.wrapper.className = cssClassName;
       this.wrapper.style.position = 'absolute';
-      this.wrapper.style.padding = '10px';
-      this.wrapper.style.border = '1px solid';
-      this.wrapper.style.borderColor = this.editor.option.foreground;
       this.wrapper.style.backgroundColor = this.editor.option.background;
+      this.wrapper.style.zIndex = zindex('floating-window');
       this.wrapper.appendChild(dom);
       getLemEditorElement().appendChild(this.wrapper);
     } else {
+      if (cssClassName) {
+        dom.className = cssClassName;
+      }
       getLemEditorElement().appendChild(dom);
     }
   }
@@ -270,16 +250,12 @@ class BaseSurface {
     }
   }
 
-  resize(width, height) {
+  _resize(width, height) {
     const ratio = window.devicePixelRatio || 1;
     this.mainDOM.width = width * this.editor.option.fontWidth * ratio;
     this.mainDOM.height = height * this.editor.option.fontHeight * ratio;
     this.mainDOM.style.width = width * this.editor.option.fontWidth + 'px';
     this.mainDOM.style.height = height * this.editor.option.fontHeight + 'px';
-
-    const ctx = this.mainDOM.getContext('2d');
-    ctx.scale(ratio, ratio);
-
     if (this.wrapper) {
       this.wrapper.style.width = width * this.editor.option.fontWidth + borderOffsetX * 2 + 'px';
       this.wrapper.style.height = height * this.editor.option.fontHeight + borderOffsetY * 2 + 'px';
@@ -299,17 +275,17 @@ class BaseSurface {
 }
 
 class CanvasSurface extends BaseSurface {
-  constructor({ editor, view, x, y, width, height, styles, isFloating, border }) {
+  constructor({ editor, view, x, y, width, height, styles, isFloating, border, cssClassName }) {
     super({ editor });
 
     const canvas = this.setupCanvas(styles);
-    this.setupDOM({ dom: canvas, isFloating, border });
+    this.setupDOM({ dom: canvas, isFloating, border, cssClassName });
     this.move(x, y);
     this.resize(width, height);
 
     this.drawingQueue = [];
 
-    addMouseEventListeners({dom:canvas, editor});
+    addMouseEventListeners({ dom: canvas, editor });
   }
 
   setupCanvas(styles) {
@@ -321,6 +297,13 @@ class CanvasSurface extends BaseSurface {
       }
     }
     return canvas;
+  }
+
+  resize(width, height) {
+    this._resize(width, height);
+    const ratio = window.devicePixelRatio || 1;
+    const ctx = this.mainDOM.getContext('2d');
+    ctx.scale(ratio, ratio);
   }
 
   drawBlock(x, y, width, height, color) {
@@ -337,9 +320,10 @@ class CanvasSurface extends BaseSurface {
     });
   }
 
-  drawText(x, y, text, textWidth, attribute) {
+  drawText(x, y, text, textWidth, attribute, font) {
     const option = this.editor.option;
     this.drawingQueue.push(function(ctx) {
+      font = font ? `${option.fontSize}px ${font}` : option.font;
       if (!attribute) {
         drawBlock({
           ctx,
@@ -355,7 +339,7 @@ class CanvasSurface extends BaseSurface {
           y: y * option.fontHeight,
           text: text,
           style: option.foreground,
-          font: option.font,
+          font: font,
           option,
         });
       } else {
@@ -387,7 +371,7 @@ class CanvasSurface extends BaseSurface {
           y: gy,
           text: text,
           style: foreground,
-          font: bold ? ('bold ' + option.font) : option.font,
+          font: bold ? ('bold ' + font) : font,
           option,
         });
         if (underline) {
@@ -411,23 +395,41 @@ class CanvasSurface extends BaseSurface {
     }
     this.drawingQueue = [];
   }
+
+  activate() {
+    this.mainDOM.dataset.store = 'active';
+  }
+
+  deactivate() {
+    this.mainDOM.dataset.store = 'inactive';
+  }
 }
 
 class HTMLSurface extends BaseSurface {
-  constructor({ editor, x, y, width, height, styles, isFloating, border, html }) {
+  constructor({ editor, x, y, width, height, styles, option, isFloating, border, html }) {
     super({ editor });
 
     const iframe = document.createElement('iframe');
     this.setupDOM({ dom: iframe, isFloating, border });
     iframe.style.position = 'absolute';
-    iframe.style.backgroundColor = 'white';
+    iframe.style.backgroundColor = option.background;
     iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin');
     iframe.srcdoc = html;
+    iframe.addEventListener('load', () => {
+      const win = iframe.contentWindow;
+      win.invokeLem = (method, args) => parent.postMessage(
+        { type: 'invoke-lem', method, args }
+      );
+    });
 
     this.iframe = iframe;
 
     this.move(x, y);
     this.resize(width, height);
+  }
+
+  resize(width, height) {
+    this._resize(width, height);
   }
 
   update(content) {
@@ -449,16 +451,21 @@ class VerticalBorder {
     this.option = option;
     this.editor = editor;
     this.line = document.createElement('div');
-    this.line.style.backgroundColor = option.foreground;
-    this.line.style.width = '5px';
+    this.line.className = 'lem-editor__vertical-border';
     this.line.style.height = height * option.fontHeight + 'px';
     this.line.style.position = 'absolute';
+    this.line.style.zIndex = zindex('vertical-border');
 
     getLemEditorElement().appendChild(this.line);
 
     this.move(x, y);
 
-    addMouseEventListeners({dom:this.line, editor, isDraggable: true, draggableStyle: 'col-resize'});
+    addMouseEventListeners({
+      dom: this.line,
+      editor,
+      isDraggable: true,
+      draggableStyle: 'col-resize',
+    });
   }
 
   delete() {
@@ -476,7 +483,45 @@ class VerticalBorder {
   }
 }
 
+class HorizontalBorder {
+  constructor({ x, y, width, option, editor }) {
+    this.option = option;
+    this.editor = editor;
+    this.line = document.createElement('div');
+    this.line.className = 'lem-editor__horizontal-border';
+    this.line.style.width = width * option.fontWidth + 'px';
+    this.line.style.position = 'absolute';
+    this.line.style.zIndex = zindex('horizontal-border');
+
+    getLemEditorElement().appendChild(this.line);
+
+    this.move(x, y);
+
+    addMouseEventListeners({
+      dom: this.line,
+      editor,
+      isDraggable: true,
+      draggableStyle: 'row-resize',
+    });
+  }
+
+  delete() {
+    this.line.parentNode.removeChild(this.line);
+  }
+
+  move(x, y) {
+    const [x0, y0] = this.editor.getDisplayRectangle();
+    this.line.style.left = (x0 + x * this.option.fontWidth) + 'px';
+    this.line.style.top = Math.floor(y0 + y * this.option.fontHeight - 4) + 'px';
+  }
+
+  resize(width) {
+    this.line.style.width = (width * this.option.fontWidth) + 'px';
+  }
+}
+
 const viewStyles = {
+  header: () => { },
   tile: () => { },
   floating: (option) => ({
     boxSizing: 'border-box',
@@ -518,6 +563,7 @@ class View {
     this.borderShape = borderShape;
     this.editor = editor;
 
+    this.bottomBar = null;
     this.leftsideBar = null;
 
     switch (kind) {
@@ -530,10 +576,21 @@ class View {
           option: option,
           editor: editor,
         });
+        if (!useModeline) {
+          this.bottomBar = new HorizontalBorder({
+            x: x,
+            y: y + height - 1,
+            width: width,
+            option: option,
+            editor: editor,
+          });
+        }
+        break;
+      case 'header':
+        this.mainSurface = this.makeSurface(type, content);
         break;
       case 'floating':
         this.mainSurface = this.makeSurface(type, content);
-        console.log(borderShape);
         if (borderShape === 'left-border') {
           this.leftSideBar = new VerticalBorder({
             x: x,
@@ -557,6 +614,9 @@ class View {
     if (this.leftSideBar) {
       this.leftSideBar.delete();
     }
+    if (this.bottomBar) {
+      this.bottomBar.delete();
+    }
   }
 
   move(x, y) {
@@ -569,6 +629,9 @@ class View {
     }
     if (this.leftSideBar) {
       this.leftSideBar.move(x, y);
+    }
+    if (this.bottomBar) {
+      this.bottomBar.move(x, y + this.height);
     }
   }
 
@@ -584,7 +647,10 @@ class View {
       this.modelineSurface.resize(width, 1);
     }
     if (this.leftSideBar) {
-      this.leftSideBar.resize(height + 1);
+      this.leftSideBar.resize(height + (this.modelineSurface ? 1 : 0));
+    }
+    if (this.bottomBar) {
+      this.bottomBar.resize(width);
     }
   }
 
@@ -618,13 +684,14 @@ class View {
     );
   }
 
-  print(x, y, text, textWidth, attribute) {
+  print(x, y, text, textWidth, attribute, font) {
     this.mainSurface.drawText(
       x,
       y,
       text,
       textWidth,
       attribute,
+      font,
     );
   }
 
@@ -640,10 +707,15 @@ class View {
     }
   }
 
-  touch() {
+  touch(isActive) {
     this.mainSurface.touch();
     if (this.modelineSurface) {
       this.modelineSurface.touch();
+      if (isActive) {
+        this.modelineSurface.activate();
+      } else {
+        this.modelineSurface.deactivate();
+      }
     }
   }
 
@@ -666,6 +738,7 @@ class View {
       width: this.width,
       height: this.height,
       styles: getViewStyle(this.kind, this.option),
+      option: this.option,
       isFloating: this.kind === 'floating',
       border: this.border,
       html: content,
@@ -673,6 +746,9 @@ class View {
   }
 
   makeEditorSurface() {
+    const border = this.borderShape === 'left-border' ? 0 : this.border;
+    const isFloating = this.kind === 'floating';
+
     return new CanvasSurface({
       option: this.editor.option,
       x: this.x,
@@ -681,10 +757,11 @@ class View {
       height: this.height,
       styles: getViewStyle(this.kind, this.option),
       editor: this.editor,
-      border: this.borderShape === 'left-border' ? 0 : this.border,
-      isFloating: this.kind === 'floating',
+      border,
+      isFloating,
       view: this,
-    })
+      cssClassName: ((isFloating && border) ? 'lem-editor__floating-window--bordered' : null),
+    });
   }
 
   makeModelineSurface() {
@@ -696,6 +773,8 @@ class View {
       height: 1,
       editor: this.editor,
       view: this,
+      styles: { zIndex: zindex('modeline') },
+      cssClassName: 'lem-editor__mode-line',
     });
     addMouseEventListeners({
       dom: surface.mainDOM,
@@ -727,8 +806,7 @@ class View {
 
 function isPasteKeyEvent(event) {
   if (isMacOS()) {
-    // TODO
-    return false;
+    return (event.metaKey && event.key === 'v');
   } else {
     return (event.ctrlKey && event.shiftKey && event.key === 'V');
   }
@@ -746,7 +824,7 @@ class Input {
     this.span.style.color = option.foreground;
     this.span.style.backgroundColor = option.background;
     this.span.style.position = 'absolute';
-    this.span.style.zIndex = '';
+    this.span.style.zIndex = 1000000;
     this.span.style.top = '0';
     this.span.style.left = '0';
     this.span.style.font = option.font;
@@ -765,105 +843,118 @@ class Input {
     this.input.style.font = option.font;
 
     this.input.addEventListener('blur', (event) => {
-      if (this.editor.inputEnabled) {
-        this.input.focus();
-      }
+      this.input.focus();
     });
 
     this.input.addEventListener('input', (event) => {
       //console.log('input', event);
-      if (this.editor.inputEnabled) {
-        if (this.composition === false) {
-          this.input.value = '';
-          this.span.innerHTML = '';
-          this.input.style.width = '0';
-          if (!isMacOS()) {
-            this.editor.emitInputString(event.data);
-          }
-          //console.log('>>> input', event.data);
+      if (this.composition === false) {
+        this.input.value = '';
+        this.span.innerHTML = '';
+        this.input.style.width = '0';
+        if (!isMacOS()) {
+          this.editor.emitInputString(event.data);
         }
+        //console.log('>>> input', event.data);
       }
     });
 
-    this.input.addEventListener('keydown', (event) => {
-      //console.log('keydown', event, event.isComposing, this.composition);
-      if (this.editor.inputEnabled) {
+    this.input.addEventListener('paste', async (event) => {
+      event.preventDefault(); // Block only the native insertion
+      const cd = event.clipboardData || window.Clipboard.data;
+      const textFromEvent = cd?.getData('text') ?? cd?.getData('text/plain');
 
-        if (isPasteKeyEvent(event)) {
-          this.editor.jsonrpc.notify('input', { kind: 'clipboard-paste' });
-          return;
-        }
+      if (textFromEvent && textFromEvent.length > 0) {
+        this.editor.emitInputString(textFromEvent);
+        return;
+      }
 
-        if (event.isComposing || this.composition) {
-          return;
-        }
-
-        // IMEに変換を指示する値はlemに渡すと誤作動するのでreturnする
-        if (event.key === 'Process') {
-          return;
-        }
-
-        if (this.ignoreKeydownAfterCompositionend && isSafari) {
-          // safariではIMの入力中にバックスペースやエンターキーの入力によってcompositionendイベントが来ると
-          // その後にkeydownイベントが即座に来る
-          // それを処理してしまうと余分に改行されたり文字が消えるので無視する
-          event.preventDefault();
-          this.ignoreKeydownAfterCompositionend = false;
-          return;
-        }
-
-        if (!isMacOS()) {
-          // 修飾キーなしで、ReturnやBackspaceではなく'a'などの入力であるか(event.key.length === 1)
-          if (!event.ctrlKey && !event.altKey && event.key.length === 1) {
-            // そうであれば'input' eventが受け取れるようにここでreturnする
+      // Fallback: Clipboard API (requires HTTPS/localhost & focus)
+      try {
+        if (navigator.clipboard?.readText) {
+          const text = await navigator.clipboard.readText();
+          if (text && text.length > 0) {
+            this.editor.emitInputString(text);
             return;
           }
         }
+      } catch (e) {
+        console.warn('clipboard.readText() failed:', e);
+      }
 
+      alert("Paste failed (permission/environment restriction");
+    });
+
+    this.input.addEventListener('keydown', (event) => {
+      if (isPasteKeyEvent(event)) {
+        // Do nothing here (do not call preventDefault)
+        // Let the browser fire the paste event
+        return;
+      }
+
+      if (event.isComposing || this.composition) {
+        return;
+      }
+
+      // IMEに変換を指示する値はlemに渡すと誤作動するのでreturnする
+      if (event.key === 'Process') {
+        return;
+      }
+
+      if (this.ignoreKeydownAfterCompositionend && isSafari) {
+        // safariではIMの入力中にバックスペースやエンターキーの入力によってcompositionendイベントが来ると
+        // その後にkeydownイベントが即座に来る
+        // それを処理してしまうと余分に改行されたり文字が消えるので無視する
         event.preventDefault();
+        this.ignoreKeydownAfterCompositionend = false;
+        return;
+      }
 
-        if (event.isComposing !== true && event.code !== '') {
-          // mac/chromium系のブラウザで"あ"と入力すると、
-          // keydownの後にcompositionstartが来るので、
-          // それを逆転するためにsetTimeoutを使う
-          setTimeout(() => {
-            if (!this.composition) {
-              this.editor.emitInput(event);
-              this.input.value = '';
-            }
-          }, 0);
-          return false;
+      if (!isMacOS()) {
+        // 修飾キーなしで、ReturnやBackspaceではなく'a'などの入力であるか(event.key.length === 1)
+        if (!event.ctrlKey && !event.altKey && event.key.length === 1) {
+          // そうであれば'input' eventが受け取れるようにここでreturnする
+          return;
         }
+      }
+
+      event.preventDefault();
+
+      if (event.isComposing !== true && event.code !== '') {
+        // mac/chromium系のブラウザで"あ"と入力すると、
+        // keydownの後にcompositionstartが来るので、
+        // それを逆転するためにsetTimeoutを使う
+        setTimeout(() => {
+          if (!this.composition) {
+            this.editor.emitInput(event);
+            this.input.value = '';
+          }
+        }, 0);
+        return false;
       }
     });
 
     this.input.addEventListener('compositionstart', (event) => {
       //console.log('compositionstart', event);
-      if (this.editor.inputEnabled) {
-        this.composition = true;
-        this.span.innerHTML = this.input.value;
-        this.input.style.width = this.span.offsetWidth + 'px';
-      }
+      this.composition = true;
+      this.span.innerHTML = this.input.value;
+      this.input.style.width = this.span.offsetWidth + 'px';
     });
 
     this.input.addEventListener('compositionupdate', (event) => {
       //console.log('compositionupdate', event);
-      if (this.editor.inputEnabled) {
-        this.span.innerHTML = event.data;
-        this.input.style.width = this.span.offsetWidth + 'px';
-      }
+      this.span.innerHTML = event.data;
+      this.input.style.width = this.span.offsetWidth + 'px';
     });
 
     this.input.addEventListener('compositionend', (event) => {
       //console.log('compositionend', event);
-      if (this.editor.inputEnabled) {
-        this.composition = false;
-        this.editor.emitInputString(this.input.value);
-        this.input.value = '';
-        this.span.innerHTML = this.input.value;
-        this.input.style.width = '0';
-        this.ignoreKeydownAfterCompositionend = true;
-      }
+      this.composition = false;
+      this.editor.emitInputString(this.input.value);
+      this.input.value = '';
+      this.span.innerHTML = this.input.value;
+      this.input.style.width = '0';
+      this.ignoreKeydownAfterCompositionend = true;
     });
 
     document.body.appendChild(this.input);
@@ -920,24 +1011,15 @@ export class Editor {
     getDisplayRectangle = getDisplayRectangleDefault,
     fontName,
     fontSize,
-    onLoaded,
     url,
     onExit,
     onClosed,
-    onRestart,
-    onUserInput,
-    onSwitchFile,
   }) {
     this.getDisplayRectangle = getDisplayRectangle;
 
     this.option = new Option({ fontName, fontSize });
 
     this.onExit = onExit;
-    this.onLoaded = onLoaded;
-    this.onRestart = onRestart;
-    this.onUserInput = onUserInput;
-    this.onSwitchFile = onSwitchFile;
-    this.inputEnabled = true;
 
     this.input = new Input(this);
     this.cursors = new Map();
@@ -952,7 +1034,6 @@ export class Editor {
 
     this.messageTable = new MessageTable();
     this.messageTable.register(this.jsonrpc, {
-      'startup': this.startup.bind(this),
       'update-foreground': this.updateForeground.bind(this),
       'update-background': this.updateBackground.bind(this),
       'make-view': this.makeView.bind(this),
@@ -971,16 +1052,19 @@ export class Editor {
       'resize-display': this.resizeDisplay.bind(this),
       'bulk': this.bulk.bind(this),
       'exit': this.exitEditor.bind(this),
-      'user-input': this.userInput.bind(this),
-      'switch-file': this.switchFile.bind(this),
       'get-clipboard-text': this.getClipboardText.bind(this),
       'set-clipboard-text': this.setClipboardText.bind(this),
       'js-eval': this.jsEval.bind(this),
+      'set-font': this.setFont.bind(this),
+      'get-font': this.getFont.bind(this),
+      'get-display-size': this.getDisplaySize.bind(this),
+      'load-css': this.loadCSS.bind(this),
     });
 
     this.login();
 
     this.boundedHandleResize = this.handleResize.bind(this);
+    this.focusHiddenInput = this.focusHiddenInput.bind(this);
   }
 
   init() {
@@ -1006,6 +1090,9 @@ export class Editor {
       return;
     }
 
+    if (key.key === 'Unidentified') {
+      return;
+    }
     this.jsonrpc.notify('input', { kind: 'key', value: key });
   }
 
@@ -1026,12 +1113,17 @@ export class Editor {
     }
   }
 
-  enableInput() {
-    this.inputEnabled = true;
-  }
-
-  disableInput() {
-    this.inputEnabled = false;
+  focusHiddenInput() {
+    const el = this.input?.input;
+    if (!el) return;
+    try { window.focus(); } catch (_) { }
+    // mousedown 内で即座に focus() するとブラウザのデフォルト処理に負けることがある
+    requestAnimationFrame(() => {
+      // 一部環境ではさらに 1tick 遅らせると安定する
+      setTimeout(() => {
+        el.focus({ preventScroll: true });
+      }, 0);
+    });
   }
 
   sendNotification(method, args) {
@@ -1044,8 +1136,8 @@ export class Editor {
 
   getDisplaySize() {
     const [_x, _y, displayWidth, displayHeight] = this.getDisplayRectangle();
-    const width = Math.round(displayWidth / this.option.fontWidth);
-    const height = Math.round(displayHeight / this.option.fontHeight);
+    const width = Math.floor(displayWidth / this.option.fontWidth);
+    const height = Math.floor(displayHeight / this.option.fontHeight);
     return { width, height };
   }
 
@@ -1072,17 +1164,7 @@ export class Editor {
       }
 
       this.jsonrpc.notify('redraw', { size: this.getDisplaySize() });
-
-      this.jsonrpc.request('user-file-map', {}, response => {
-        this.onSwitchFile(response);
-      });
     });
-  }
-
-  startup() {
-    if (this.onRestart) {
-      this.onRestart();
-    }
   }
 
   updateForeground(color) {
@@ -1132,9 +1214,9 @@ export class Editor {
     view.move(x, y);
   }
 
-  redrawViewAfter({ viewInfo: { id }, html }) {
+  redrawViewAfter({ viewInfo: { id }, isActive }) {
     const view = this.findViewById(id);
-    view.touch();
+    view.touch(isActive);
   }
 
   clear({ viewInfo: { id } }) {
@@ -1152,22 +1234,9 @@ export class Editor {
     view.clearEob(x, y);
   }
 
-  put({ viewInfo: { id }, x, y, text, textWidth, attribute, cursorInfo }) {
+  put({ viewInfo: { id }, x, y, text, textWidth, attribute, font }) {
     const view = this.findViewById(id);
-    view.print(x, y, text, textWidth, attribute);
-    if (cursorInfo) {
-      const { name, color } = cursorInfo;
-      let cursor = this.cursors.get(name);
-      if (!cursor) {
-        cursor = new Cursor(this, name, color);
-        this.cursors.set(name, cursor);
-      }
-
-      cursor.move(
-        (view.x + x) * this.option.fontWidth,
-        (view.y + y - 1) * this.option.fontHeight,
-      );
-    }
+    view.print(x, y, text, textWidth, attribute, font);
   }
 
   modelinePut({ viewInfo: { id }, x, y, text, textWidth, attribute }) {
@@ -1205,10 +1274,6 @@ export class Editor {
   }
 
   bulk(messages) {
-    if (this.onLoaded) {
-      this.onLoaded();
-      this.onLoaded = null;
-    }
     for (const { method, argument } of messages) {
       this.callMessage(method, argument);
     }
@@ -1220,20 +1285,8 @@ export class Editor {
     }
   }
 
-  userInput({ value }) {
-    if (this.onUserInput) {
-      this.onUserInput(value);
-    }
-  }
-
-  switchFile(userFileMap) {
-    if (this.onSwitchFile) {
-      this.onSwitchFile(userFileMap);
-    }
-  }
-
   getClipboardText() {
-    navigator.clipboard.readText().then(text => {
+    navigator.clipboard?.readText().then(text => {
       this.jsonrpc.notify('got-clipboard-text', { text });
     });
   }
@@ -1251,5 +1304,29 @@ export class Editor {
       return result.toString();
     }
     return result;
+  }
+
+  setFont({ fontName, fontSize }) {
+    this.option.setFont(
+      fontName || this.option.fontName,
+      fontSize || this.option.fontSize,
+    );
+  }
+
+  getFont() {
+    return {
+      name: this.option.fontName,
+      size: this.option.fontSize,
+    };
+  }
+
+  loadCSS({ content }) {
+    const style = document.createElement('style');
+    style.textContent = content;
+    document.head.appendChild(style);
+  }
+
+  notifyToServer(method, args) {
+    this.jsonrpc.notify('invoke', { method, args });
   }
 }

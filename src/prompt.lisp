@@ -1,6 +1,6 @@
 (in-package :lem-core)
 
-(defparameter *default-prompt-gravity* :center)
+(defparameter *default-prompt-gravity* :top-display)
 
 (defvar *prompt-activate-hook* '())
 (defvar *prompt-after-activate-hook* '())
@@ -10,6 +10,10 @@
 (defvar *prompt-file-completion-function* nil)
 (defvar *prompt-command-completion-function* 'completion-command)
 
+(defvar *automatic-tab-completion* nil
+  "When set to true, the completion list is opened instantly.
+When set to false, the completion list only opens when the user presses TAB")
+
 (defgeneric caller-of-prompt-window (prompt))
 (defgeneric prompt-active-p (prompt))
 (defgeneric active-prompt-window ())
@@ -18,6 +22,7 @@
 (defgeneric %prompt-for-line (prompt &key initial-value completion-function test-function
                                           history-symbol syntax-table gravity edit-callback
                                           special-keymap use-border))
+(defgeneric %prompt-for-file (prompt directory default existing gravity))
 
 (flet ((f (c1 c2 step-fn)
          (when c1
@@ -119,26 +124,7 @@
 
 (defun prompt-for-file (prompt &key directory (default (buffer-directory)) existing
                                     (gravity *default-prompt-gravity*))
-  (let ((result
-          (prompt-for-string (if default
-                                 (format nil "~a(~a) " prompt default)
-                                 prompt)
-                             :initial-value (when directory (princ-to-string directory))
-                             :completion-function
-                             (when *prompt-file-completion-function*
-                               (lambda (str)
-                                 (funcall *prompt-file-completion-function*
-                                          (if (alexandria:emptyp str)
-                                              "./"
-                                              str)
-                                          (or directory
-                                              (namestring (user-homedir-pathname))))))
-                             :test-function (and existing #'virtual-probe-file)
-                             :history-symbol 'prompt-for-file
-                             :gravity gravity)))
-    (if (string= result "")
-        default
-        result)))
+  (%prompt-for-file prompt directory default existing gravity))
 
 (defun prompt-for-directory (prompt &rest args
                                     &key directory (default (buffer-directory)) existing
@@ -169,10 +155,13 @@
        (completion str (all-command-names)))
    #'string-lessp))
 
-(defun prompt-for-command (prompt)
+(defun prompt-for-command (prompt &key candidates)
   (prompt-for-string
    prompt
-   :completion-function *prompt-command-completion-function*
+   :completion-function (if candidates
+                            (lambda (input)
+                              (funcall *prompt-command-completion-function* input :candidates candidates))
+                            *prompt-command-completion-function*)
    :test-function 'exist-command-p
    :history-symbol 'mh-execute-command
    :syntax-table *prompt-syntax-table*))

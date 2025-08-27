@@ -1,48 +1,59 @@
-# Lem is the editor/IDE well-tuned for Common Lisp.
-
 ![](https://raw.githubusercontent.com/Shinmera/lem-icon/gh-pages/icon-blue.svg)
+# Lem: Editor Modules
 
 ![Build Status](https://github.com/lem-project/lem/workflows/CI/badge.svg)
 [![Backers on Open Collective](https://opencollective.com/lem/backers/badge.svg)](#backers) [![Sponsors on Open Collective](https://opencollective.com/lem/sponsors/badge.svg)](#sponsors)
 [![GitHub Sponsors](https://img.shields.io/badge/-Sponsor-fafbfc?logo=GitHub-Sponsors)](https://github.com/sponsors/cxxxr)
 
-After installing lem, you can start developing in Common Lisp at once.
 
-You can skip over writing tidy settings or installing many plugins as you do on Emacs.
 
-Lem supports other programming languages thanks to its built-in LSP
-client. You can choose between an Emacs and a Vim mode.
-
-Other Lem features include:
-
-- a **project explorer** tree view
-- project-aware commands
-- interactive **grep** and **git** interfaces
-- **multiple cursors**
-- tetris
-- and more…
+After installing lem, you can start developing and extend the editor while it runs.
 
 ## Install
 
-With Docker (ncurses version):
+### nightly build
+
+Tested on Ubuntu 24.04 and macOS(apple silicon).
+
+https://github.com/lem-project/lem/releases/tag/nightly-latest
+
+### docker
+
+With Docker (terminal version):
 
     $ docker run --rm -it ghcr.io/lem-project/lem:latest
 
-### Lem-ncurses
+## Build
+
+### Lem(terminal version)
 - [GNU/Linux](https://lem-project.github.io/installation/ncurses/linux/)
 - [MacOS](https://lem-project.github.io/installation/ncurses/macos/)
 - [Windows](https://lem-project.github.io/installation/ncurses/windows/)
 
-### Lem-sdl2
+### Lem(sdl2 version)
 - [GNU/Linux](https://lem-project.github.io//installation/sdl2/linux/)
 - [MacOS](https://lem-project.github.io//installation/sdl2/macos/)
 - [Windows](https://lem-project.github.io//installation/sdl2/windows/)
 
+## Vision
 
-## Screenshots
-![Terminal](screenshots/terminal.png)　　
+Lem brings the distance between code and its execution state as close to zero as possible.  
+Users can see the results of their program while editing, without breaking their flow, 
+and visually follow the behavior of the running code in real time.
 
-![Sdl2](screenshots/sdl2.png)　　
+The interface is consistently simple and easy to use without confusion.  
+Moreover, Lem is fully customizable, and any extensions take effect immediately as they are written.
+
+### Goals
+- Instantly reflect executed code inline
+- Visualize running code in real time
+- Provide a consistent UI that feels effortless to use
+- Maintain documentation for beginners, extension developers, and core developers.
+- Offer an intuitive and consistent API for extensions
+- Deliver a comfortable environment right out of the box
+
+### Non-goals
+- Rather than imitating Emacs or Vim, Lem pursues its own unique approach
 
 ## Contributors
 
