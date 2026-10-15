@@ -11,7 +11,7 @@
 (defvar *serial-write-thread* nil)
 (defvar *serial-buffer* nil)
 (defvar *work-queue* nil)
-(defvar *serial-window*)
+(defvar *serial-window* nil)
 (defvar *serial-monitor-width* 25)
 (defvar *serial-monitor-input-height* 10)
 (defparameter *baudrate* 115200)
@@ -74,15 +74,14 @@
         (bt2:make-thread #'write-serial-data :name "serial-monitor-write-thread")))
 
 (defun stop-serial-monitor ()
-  (when *serial-window*
-    (loop :for window :in *serial-window* :do 
-             (if (null window)
-                 nil
-                 (lem:delete-window window)))
-    (setf *serial-window* nil))
   (when *serial-buffer*
+    (let ((wins (lem:get-buffer-windows *serial-buffer*)))
+      (when wins
+        (dolist (win wins)
+          (lem:delete-window win))))
     (lem:delete-buffer *serial-buffer*)
-    (setf *serial-buffer* nil))
+    (setf *serial-buffer* nil)
+    (setf *serial-window* nil))
   (when *serial-stream*
     (close *serial-stream*)
     (setf *serial-stream* nil))
@@ -91,4 +90,5 @@
     (setf *serial-read-thread* nil))
   (when *serial-write-thread*
     (bt2:destroy-thread *serial-write-thread*)
-    (setf *serial-write-thread* nil)))
+    (setf *serial-write-thread* nil))
+  (send-event (lambda () (redraw-display))))
