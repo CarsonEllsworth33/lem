@@ -298,6 +298,7 @@
                "lem-legit"
                "lem-tutor"
                "lem-serial-monitor"
+               "lem-microcontroller"
                "lem-dashboard"
                "lem-dockerfile-mode"
                "lem-copilot"
